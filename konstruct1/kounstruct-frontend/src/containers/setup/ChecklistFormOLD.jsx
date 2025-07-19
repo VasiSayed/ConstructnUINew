@@ -15,8 +15,8 @@ import {
 } from "../../api";
 import { showToast } from "../../utils/toast";
 import * as XLSX from 'xlsx'; // Add this import
-import axios from "axios";
 
+import axios from "axios";
 const ChecklistForm = ({ setShowForm, checklist, projectOptions = [], onChecklistCreated }) => {
   // Project and hierarchy
   const [projectId, setProjectId] = useState("");
@@ -47,8 +47,6 @@ const ChecklistForm = ({ setShowForm, checklist, projectOptions = [], onChecklis
   const [cat5, setCat5] = useState("");
   const [cat6, setCat6] = useState("");
 
-
-  
   // Checklist logic
   const [options, setOptions] = useState([{ value: "", submission: "P" }]);
   const [questions, setQuestions] = useState([
@@ -134,23 +132,13 @@ const ChecklistForm = ({ setShowForm, checklist, projectOptions = [], onChecklis
       return;
     }
     allinfobuildingtoflat(projectId)
-      .then((res) => setBuildings(Array.isArray(res.data) ? res.data : []))
+      .then((res) => setBuildings(res.data || []))
       .catch(() => {
         showToast("Failed to load buildings", "error");
         setBuildings([]);
       });
-    // Direct axios call instead of getPurposeByProjectId
-    axios
-      .get(
-        `https://konstruct.world/projects/purpose/get-purpose-details-by-project-id/${projectId}/`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("ACCESS_TOKEN")}`,
-            "Content-Type": "application/json",
-          },
-        }
-      )
-      .then((res) => setPurposes(Array.isArray(res.data) ? res.data : []))
+    getPurposeByProjectId(projectId)
+      .then((res) => setPurposes(res.data || []))
       .catch(() => {
         showToast("Failed to load purposes", "error");
         setPurposes([]);
@@ -169,19 +157,62 @@ const ChecklistForm = ({ setShowForm, checklist, projectOptions = [], onChecklis
     setSelectedStage("");
   }, [projectId]);
 
-  // Add this useEffect after your existing ones
-  useEffect(() => {
-    if (isEdit && checklist?.id) {
-      const fetchChecklistDetails = async () => {
-        try {
-          const response = await getChecklistById(checklist.id);
-          const checklistData = response.data;
+// (async () => {
+    //try {
+  //    const response = await axios.get(
+      //  `https://konstruct.world/projects/purpose/get-purpose-details-by-project-id/${projectId}/`,
+        //{
+      //    headers: {
+    //        Authorization: `Bearer ${localStorage.getItem("ACCESS_TOKEN")}`,
+          //  "Content-Type": "application/json",
+        //  },
+      //  }
+    //  );
+   //   setPurposes(Array.isArray(response.data) ? response.data : []);
+   // } catch (error) {
+    //  showToast("Failed to load purposes", "error");
+   //   setPurposes([]);
+   // }
+ // })();  // Add this useEffect after your existing ones
+ // useEffect(() => {
+//    if (isEdit && checklist?.id) {
+   //   const fetchChecklistDetails = async () => {
+  //      try {
+//          const response = await getChecklistById(checklist.id);
+         // const checklistData = response.data;
 
           // Pre-populate all fields
-          setChecklistName(checklistData.name || "");
-          setProjectId(checklistData.project_id || "");
-          setSelectedPurpose(checklistData.purpose_id || "");
-          setSelectedPhase(checklistData.phase_id || "");
+          //setChecklistName(checklistData.name || "");
+        //  setProjectId(checklistData.project_id || "");
+      //    setSelectedPurpose(checklistData.purpose_id || "");
+         // setSelectedPhase(checklistData.phase_id || "");
+  useEffect(() => {
+  if (!projectId) {
+    setPurposes([]);
+    return;
+  }
+
+  const fetchPurposes = async () => {
+    try {
+      const response = await axios.get(
+        `https://konstruct.world/projects/purpose/get-purpose-details-by-project-id/${projectId}/`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("ACCESS_TOKEN")}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      setPurposes(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      showToast("Failed to load purposes", "error");
+      setPurposes([]);
+    }
+  };
+
+  fetchPurposes();
+}, [projectId]);
+
           setSelectedStage(checklistData.stage_id || "");
           setCategory(checklistData.category || "");
           setCat1(checklistData.category_level1 || "");
@@ -211,6 +242,7 @@ const ChecklistForm = ({ setShowForm, checklist, projectOptions = [], onChecklis
           }
         } catch (error) {
           showToast("Failed to load checklist details", "error");
+
         }
       };
 
@@ -743,13 +775,11 @@ const ChecklistForm = ({ setShowForm, checklist, projectOptions = [], onChecklis
             onChange={(e) => setProjectId(e.target.value)}
           >
             <option value="">Select Project</option>
-            {(Array.isArray(projectOptions) ? projectOptions : []).map(
-              (proj) => (
-                <option key={proj.id} value={proj.id}>
-                  {proj.name}
-                </option>
-              )
-            )}
+            {projectOptions.map((proj) => (
+              <option key={proj.id} value={proj.id}>
+                {proj.name}
+              </option>
+            ))}
           </select>
         </div>
         {/* Building Dropdown */}
@@ -762,7 +792,7 @@ const ChecklistForm = ({ setShowForm, checklist, projectOptions = [], onChecklis
               onChange={(e) => setSelectedBuilding(e.target.value)}
             >
               <option value="">Select Building</option>
-              {(Array.isArray(buildings) ? buildings : []).map((b) => (
+              {buildings.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
                 </option>

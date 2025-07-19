@@ -113,20 +113,11 @@ function Setup() {
     setSetup("stages");
   };
 
-const isStageData = React.useCallback(() => {
-  const projectPurposes = purposes?.[selectedProjectId];
-  const projectPhases = phases?.[selectedProjectId];
-  const projectStages = stages?.[selectedProjectId];
-
-  return (
-    Array.isArray(projectPurposes) &&
-    projectPurposes.length > 0 &&
-    Array.isArray(projectPhases) &&
-    projectPhases.length > 0 &&
-    Array.isArray(projectStages) &&
-    projectStages.length > 0
-  );
-}, [selectedProjectId, purposes, phases, stages]);
+  const isStageData = React.useCallback(() => (
+    purposes?.[selectedProjectId]?.length > 0 &&
+    phases?.[selectedProjectId]?.length > 0 &&
+    stages?.[selectedProjectId]?.length > 0
+  ), [selectedProjectId, purposes, phases, stages]);
 
   const getStepIndex = (stepKey) => SETUP_STEPS.findIndex(s => s.key === stepKey);
   const currentStepIndex = getStepIndex(setup);

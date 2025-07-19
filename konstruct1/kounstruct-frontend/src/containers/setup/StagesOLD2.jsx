@@ -2,7 +2,10 @@ import React, { useEffect, useState } from "react";
 import {
   createPhase,
   createPurpose,
+  getPurposeByProjectId,
   createStage,
+  getPhaseDetailsByProjectId,
+  getStageDetailsByProjectId,
   editStage,
   deleteStage,
   editPurpose,
@@ -96,17 +99,16 @@ function Stages({ nextStep, previousStep }) {
     if (projectId) {
       try {
         const response = await axios.get(
-          `https://konstruct.world/projects/purpose/get-purpose-details-by-project-id/${projectId}/`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("ACCESS_TOKEN")}`,
-            },
-          }
-        );
+      `https://konstruct.world/organizations/user-orgnizationn-info/${projectId}/`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("ACCESS_TOKEN")}`,
+        },
+      }
+    );
         // const response = await getPurposeByProjectId(projectId);
         if (response.status === 200) {
           setPurposeData(response.data);
-          console.log(purposeData,'this is my data');
           dispatch(setPurposes({ project_id: projectId, data: response.data }));
           return response.data;
         }
@@ -120,14 +122,7 @@ function Stages({ nextStep, previousStep }) {
   const getPhases = async (purposesData = null) => {
     if (!projectId) return;
     try {
-      const response = await axios.get(
-        `https://konstruct.world/projects/phases/by-project/${projectId}/`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("ACCESS_TOKEN")}`,
-          },
-        }
-      );
+      const response = await getPhaseDetailsByProjectId(projectId);
       if (response.status === 200) {
         const phases = response.data;
         const currentPurposes = purposesData || purposeData;
@@ -149,14 +144,7 @@ function Stages({ nextStep, previousStep }) {
 const getStages = async (phasesDataParam = null, purposesDataParam = null) => {
   if (!projectId) return;
   try {
-    const response = await axios.get(
-      `https://konstruct.world/projects/get-stage-details-by-project-id/${projectId}/`,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("ACCESS_TOKEN")}`,
-        },
-      }
-    );
+    const response = await getStageDetailsByProjectId(projectId);
     if (response.status === 200) {
       const stages = response.data;
       // ✅ Fixed the variable references

@@ -2,7 +2,10 @@ import React, { useEffect, useState } from "react";
 import {
   createPhase,
   createPurpose,
+  getPurposeByProjectId,
   createStage,
+  getPhaseDetailsByProjectId,
+  getStageDetailsByProjectId,
   editStage,
   deleteStage,
   editPurpose,
@@ -15,7 +18,6 @@ import { useSelector, useDispatch } from "react-redux";
 import { setPurposes, setPhases, setStages } from "../../store/userSlice";
 import { Check, Edit3, Trash2, Plus, X } from "lucide-react";
 import { useTheme } from "../../ThemeContext";
-import axios from "axios";
 
 const TABS = [
   { key: "Purpose", label: "Purpose" },
@@ -91,22 +93,14 @@ function Stages({ nextStep, previousStep }) {
   const [editedStageName, setEditedStageName] = useState("");
   const [editedSequence, setEditedSequence] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
+
   // --- Fetch helpers ---
   const getPurposes = async () => {
     if (projectId) {
       try {
-        const response = await axios.get(
-          `https://konstruct.world/projects/purpose/get-purpose-details-by-project-id/${projectId}/`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("ACCESS_TOKEN")}`,
-            },
-          }
-        );
-        // const response = await getPurposeByProjectId(projectId);
+        const response = await getPurposeByProjectId(projectId);
         if (response.status === 200) {
           setPurposeData(response.data);
-          console.log(purposeData,'this is my data');
           dispatch(setPurposes({ project_id: projectId, data: response.data }));
           return response.data;
         }
@@ -120,14 +114,7 @@ function Stages({ nextStep, previousStep }) {
   const getPhases = async (purposesData = null) => {
     if (!projectId) return;
     try {
-      const response = await axios.get(
-        `https://konstruct.world/projects/phases/by-project/${projectId}/`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("ACCESS_TOKEN")}`,
-          },
-        }
-      );
+      const response = await getPhaseDetailsByProjectId(projectId);
       if (response.status === 200) {
         const phases = response.data;
         const currentPurposes = purposesData || purposeData;
@@ -146,47 +133,29 @@ function Stages({ nextStep, previousStep }) {
     }
     return [];
   };
-const getStages = async (phasesDataParam = null, purposesDataParam = null) => {
-  if (!projectId) return;
-  try {
-    const response = await axios.get(
-      `https://konstruct.world/projects/get-stage-details-by-project-id/${projectId}/`,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("ACCESS_TOKEN")}`,
-        },
+
+  const getStages = async (phasesData = null, purposesData = null) => {
+    if (!projectId) return;
+    try {
+      const response = await getStageDetailsByProjectId(projectId);
+      if (response.status === 200) {
+        const stages = response.data;
+        const currentPhases = phasesData || phasesData;
+        const currentPurposes = purposesData || purposeData;
+        const formattedStages = stages.map((stage) => ({
+          purpose: currentPurposes.find((p) => p.id === stage.purpose)?.name || "Unknown",
+          phase: currentPhases.find((ph) => ph.id === stage.phase)?.phase || "Unknown",
+          stage: stage.name,
+          id: stage.id,
+          sequence: stage.sequence || 1,
+        }));
+        setStagesData(formattedStages);
+        dispatch(setStages({ project_id: projectId, data: formattedStages }));
       }
-    );
-    if (response.status === 200) {
-      const stages = response.data;
-      // ✅ Fixed the variable references
-      const currentPhases = phasesDataParam || phasesData;
-      const currentPurposes = purposesDataParam || purposeData;
-
-      // ✅ Add safety checks for arrays
-      const formattedStages = Array.isArray(stages)
-        ? stages.map((stage) => ({
-            purpose:
-              (Array.isArray(currentPurposes) ? currentPurposes : []).find(
-                (p) => p.id === stage.purpose
-              )?.name || "Unknown",
-            phase:
-              (Array.isArray(currentPhases) ? currentPhases : []).find(
-                (ph) => ph.id === stage.phase
-              )?.phase || "Unknown",
-            stage: stage.name,
-            id: stage.id,
-            sequence: stage.sequence || 1,
-          }))
-        : [];
-
-      setStagesData(formattedStages);
-      dispatch(setStages({ project_id: projectId, data: formattedStages }));
+    } catch (error) {
+      showApiErrors(error, "Failed to fetch stages");
     }
-  } catch (error) {
-    showApiErrors(error, "Failed to fetch stages");
-  }
-};
+  };
 
   const fetchAllData = async () => {
     if (projectId) {
@@ -450,10 +419,7 @@ const getStages = async (phasesDataParam = null, purposesDataParam = null) => {
             border: `1px solid ${palette.BORDER_GRAY}`,
           }}
         >
-          <h3
-            className="text-xl font-bold mb-5"
-            style={{ color: palette.ORANGE_DARK }}
-          >
+          <h3 className="text-xl font-bold mb-5" style={{ color: palette.ORANGE_DARK }}>
             Purpose Management
           </h3>
           <div className="flex gap-2 mb-6">
@@ -500,11 +466,7 @@ const getStages = async (phasesDataParam = null, purposesDataParam = null) => {
                         className="flex-1 border px-3 py-2 rounded-lg text-base"
                         value={editPurposeName}
                         onChange={(e) => setEditPurposeName(e.target.value)}
-                        style={{
-                          borderColor: palette.ORANGE,
-                          color: palette.TEXT_GRAY,
-                          background: palette.ORANGE_LIGHT,
-                        }}
+                        style={{ borderColor: palette.ORANGE, color: palette.TEXT_GRAY, background: palette.ORANGE_LIGHT }}
                       />
                       <button
                         className="ml-2 px-4 py-2 rounded-lg"
@@ -515,10 +477,7 @@ const getStages = async (phasesDataParam = null, purposesDataParam = null) => {
                       </button>
                       <button
                         className="ml-2 px-4 py-2 rounded-lg"
-                        style={{
-                          background: "#f4f4f4",
-                          color: palette.TEXT_GRAY,
-                        }}
+                        style={{ background: "#f4f4f4", color: palette.TEXT_GRAY }}
                         onClick={() => setEditPurposeId(null)}
                       >
                         <X size={20} />
@@ -526,10 +485,7 @@ const getStages = async (phasesDataParam = null, purposesDataParam = null) => {
                     </>
                   ) : (
                     <>
-                      <span
-                        className="capitalize text-lg font-medium"
-                        style={{ color: palette.TEXT_GRAY }}
-                      >
+                      <span className="capitalize text-lg font-medium" style={{ color: palette.TEXT_GRAY }}>
                         {purpose.name}
                       </span>
                       <button
@@ -541,10 +497,7 @@ const getStages = async (phasesDataParam = null, purposesDataParam = null) => {
                       </button>
                       <button
                         className="px-3 py-1 rounded-lg"
-                        style={{
-                          background: "#fae7e3",
-                          color: palette.ORANGE_DARK,
-                        }}
+                        style={{ background: "#fae7e3", color: palette.ORANGE_DARK }}
                         onClick={() => handleDeletePurpose(purpose.id)}
                       >
                         <Trash2 size={18} />
@@ -564,65 +517,39 @@ const getStages = async (phasesDataParam = null, purposesDataParam = null) => {
 
       {/* PHASES */}
       {activeSection === "Phases" && (
-        <div
-          className="p-8 rounded-2xl mb-6 shadow"
-          style={{
-            background: palette.BG_WHITE,
-            border: `1px solid ${palette.BORDER_GRAY}`,
-          }}
-        >
+        <div className="p-8 rounded-2xl mb-6 shadow" style={{ background: palette.BG_WHITE, border: `1px solid ${palette.BORDER_GRAY}` }}>
           <div className="flex flex-col lg:flex-row gap-10">
             {/* Create Phase Card */}
-            <div
-              className="border-2 rounded-2xl p-6 min-w-[340px] w-full max-w-md shadow"
+            <div className="border-2 rounded-2xl p-6 min-w-[340px] w-full max-w-md shadow"
               style={{
                 background: palette.BG_WHITE,
                 borderColor: palette.ORANGE,
                 color: palette.TEXT_GRAY,
-              }}
-            >
-              <h4
-                className="font-bold mb-4 text-lg"
-                style={{ color: palette.ORANGE_DARK }}
-              >
+              }}>
+              <h4 className="font-bold mb-4 text-lg" style={{ color: palette.ORANGE_DARK }}>
                 Create Phase
               </h4>
               <div className="space-y-4">
                 <div>
-                  <label
-                    className="block font-medium mb-1"
-                    style={{ color: palette.TEXT_GRAY }}
-                  >
+                  <label className="block font-medium mb-1" style={{ color: palette.TEXT_GRAY }}>
                     Purpose
                   </label>
                   <select
                     value={selectedPurpose}
                     onChange={(e) => setSelectedPurpose(e.target.value)}
                     className="w-full px-3 py-2 border rounded-lg focus:outline-none text-base"
-                    style={{
-                      borderColor: palette.ORANGE,
-                      color: palette.TEXT_GRAY,
-                      background: palette.ORANGE_LIGHT,
-                    }}
+                    style={{ borderColor: palette.ORANGE, color: palette.TEXT_GRAY, background: palette.ORANGE_LIGHT }}
                   >
                     <option value="">Select Purpose</option>
-                    {Array.isArray(purposeData) &&
-                      purposeData.map((purpose) => (
-                        <option
-                          key={purpose.id}
-                          value={purpose.name}
-                          className="capitalize"
-                        >
-                          {purpose.name}
-                        </option>
-                      ))}
+                    {purposeData.map((purpose) => (
+                      <option key={purpose.id} value={purpose.name} className="capitalize">
+                        {purpose.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
-                  <label
-                    className="block font-medium mb-1"
-                    style={{ color: palette.TEXT_GRAY }}
-                  >
+                  <label className="block font-medium mb-1" style={{ color: palette.TEXT_GRAY }}>
                     Phase Name
                   </label>
                   <input
@@ -630,11 +557,7 @@ const getStages = async (phasesDataParam = null, purposesDataParam = null) => {
                     onChange={(e) => setPhaseName(e.target.value)}
                     type="text"
                     className="w-full px-3 py-2 border rounded-lg focus:outline-none text-base"
-                    style={{
-                      borderColor: palette.ORANGE,
-                      color: palette.TEXT_GRAY,
-                      background: palette.ORANGE_LIGHT,
-                    }}
+                    style={{ borderColor: palette.ORANGE, color: palette.TEXT_GRAY, background: palette.ORANGE_LIGHT }}
                     placeholder="Enter phase name"
                   />
                 </div>
@@ -652,11 +575,7 @@ const getStages = async (phasesDataParam = null, purposesDataParam = null) => {
                       setPhaseName("");
                     }}
                     className="px-4 py-2 border rounded-lg font-medium"
-                    style={{
-                      borderColor: palette.ORANGE,
-                      color: palette.ORANGE,
-                      background: "#f4f4f4",
-                    }}
+                    style={{ borderColor: palette.ORANGE, color: palette.ORANGE, background: "#f4f4f4" }}
                   >
                     Clear
                   </button>
@@ -666,168 +585,100 @@ const getStages = async (phasesDataParam = null, purposesDataParam = null) => {
 
             {/* Existing Phases */}
             <div className="flex-1">
-              <h3
-                className="text-xl font-bold mb-4"
-                style={{ color: palette.ORANGE_DARK }}
-              >
+              <h3 className="text-xl font-bold mb-4" style={{ color: palette.ORANGE_DARK }}>
                 Existing Phases
               </h3>
-              {phasesData.length > 0 ? (
+              {(phasesData || [] ).length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {Array.isArray(phasesData) &&
-                    phasesData.map((phase) => (
-                      <div
-                        key={phase.id}
-                        className="border rounded-2xl p-5 shadow group"
-                        style={{
-                          background: palette.BG_WHITE,
-                          borderColor: palette.ORANGE,
-                          color: palette.TEXT_GRAY,
-                        }}
-                      >
-                        {editPhaseId === phase.id ? (
-                          <div className="space-y-3">
-                            <div>
-                              <label
-                                className="block text-xs font-medium mb-1"
-                                style={{ color: palette.TEXT_GRAY }}
-                              >
-                                Purpose
-                              </label>
-                              <select
-                                className="w-full border px-3 py-2 rounded-lg"
-                                style={{
-                                  borderColor: palette.ORANGE,
-                                  color: palette.TEXT_GRAY,
-                                  background: palette.ORANGE_LIGHT,
-                                }}
-                                value={editPhasePurpose}
-                                onChange={(e) =>
-                                  setEditPhasePurpose(e.target.value)
-                                }
-                              >
-                                {Array.isArray(purposeData) &&
-                                  purposeData.map((purpose) => (
-                                    <option
-                                      key={purpose.id}
-                                      value={purpose.name}
-                                    >
-                                      {purpose.name}
-                                    </option>
-                                  ))}
-                              </select>
-                            </div>
-                            <div>
-                              <label
-                                className="block text-xs font-medium mb-1"
-                                style={{ color: palette.TEXT_GRAY }}
-                              >
-                                Phase Name
-                              </label>
-                              <input
-                                className="w-full border px-3 py-2 rounded-lg"
-                                style={{
-                                  borderColor: palette.ORANGE,
-                                  color: palette.TEXT_GRAY,
-                                  background: palette.ORANGE_LIGHT,
-                                }}
-                                value={editPhaseName}
-                                onChange={(e) =>
-                                  setEditPhaseName(e.target.value)
-                                }
-                              />
-                            </div>
-                            <div className="flex gap-2 pt-2">
-                              <button
-                                className="flex-1 rounded-lg font-medium"
-                                style={{
-                                  background: palette.ORANGE,
-                                  color: "#fff",
-                                }}
-                                onClick={() => handleSavePhase(phase.id)}
-                              >
-                                <Check size={18} /> Save
-                              </button>
-                              <button
-                                className="flex-1 border px-3 py-2 rounded-lg font-medium"
-                                style={{
-                                  borderColor: palette.ORANGE,
-                                  color: palette.ORANGE,
-                                  background: "#f4f4f4",
-                                }}
-                                onClick={() => setEditPhaseId(null)}
-                              >
-                                <X size={18} /> Cancel
-                              </button>
+                  {(phasesData || [] ).map((phase) => (
+                    <div key={phase.id} className="border rounded-2xl p-5 shadow group"
+                      style={{ background: palette.BG_WHITE, borderColor: palette.ORANGE, color: palette.TEXT_GRAY }}>
+                      {editPhaseId === phase.id ? (
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-xs font-medium mb-1" style={{ color: palette.TEXT_GRAY }}>
+                              Purpose
+                            </label>
+                            <select
+                              className="w-full border px-3 py-2 rounded-lg"
+                              style={{ borderColor: palette.ORANGE, color: palette.TEXT_GRAY, background: palette.ORANGE_LIGHT }}
+                              value={editPhasePurpose}
+                              onChange={(e) => setEditPhasePurpose(e.target.value)}
+                            >
+                              {purposeData.map((purpose) => (
+                                <option key={purpose.id} value={purpose.name}>{purpose.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium mb-1" style={{ color: palette.TEXT_GRAY }}>
+                              Phase Name
+                            </label>
+                            <input
+                              className="w-full border px-3 py-2 rounded-lg"
+                              style={{ borderColor: palette.ORANGE, color: palette.TEXT_GRAY, background: palette.ORANGE_LIGHT }}
+                              value={editPhaseName}
+                              onChange={(e) => setEditPhaseName(e.target.value)}
+                            />
+                          </div>
+                          <div className="flex gap-2 pt-2">
+                            <button
+                              className="flex-1 rounded-lg font-medium"
+                              style={{ background: palette.ORANGE, color: "#fff" }}
+                              onClick={() => handleSavePhase(phase.id)}
+                            >
+                              <Check size={18} /> Save
+                            </button>
+                            <button
+                              className="flex-1 border px-3 py-2 rounded-lg font-medium"
+                              style={{ borderColor: palette.ORANGE, color: palette.ORANGE, background: "#f4f4f4" }}
+                              onClick={() => setEditPhaseId(null)}
+                            >
+                              <X size={18} /> Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-xs font-medium mb-1" style={{ color: palette.TEXT_GRAY }}>
+                              Purpose
+                            </label>
+                            <div className="px-3 py-2 rounded text-base capitalize" style={{ background: palette.ORANGE_LIGHT, color: palette.TEXT_GRAY }}>
+                              {phase.purpose}
                             </div>
                           </div>
-                        ) : (
-                          <div className="space-y-3">
-                            <div>
-                              <label
-                                className="block text-xs font-medium mb-1"
-                                style={{ color: palette.TEXT_GRAY }}
-                              >
-                                Purpose
-                              </label>
-                              <div
-                                className="px-3 py-2 rounded text-base capitalize"
-                                style={{
-                                  background: palette.ORANGE_LIGHT,
-                                  color: palette.TEXT_GRAY,
-                                }}
-                              >
-                                {phase.purpose}
-                              </div>
-                            </div>
-                            <div>
-                              <label
-                                className="block text-xs font-medium mb-1"
-                                style={{ color: palette.TEXT_GRAY }}
-                              >
-                                Phase Name
-                              </label>
-                              <div
-                                className="px-3 py-2 rounded text-base capitalize"
-                                style={{
-                                  background: palette.ORANGE_LIGHT,
-                                  color: palette.TEXT_GRAY,
-                                }}
-                              >
-                                {phase.phase}
-                              </div>
-                            </div>
-                            <div className="flex gap-2 pt-2">
-                              <button
-                                className="flex-1 rounded-lg font-medium"
-                                style={{
-                                  background: palette.ORANGE,
-                                  color: "#fff",
-                                }}
-                                onClick={() => handleEditPhase(phase)}
-                              >
-                                <Edit3 size={18} /> Edit
-                              </button>
-                              <button
-                                className="rounded-lg font-medium"
-                                style={{
-                                  background: "#fae7e3",
-                                  color: palette.ORANGE_DARK,
-                                }}
-                                onClick={() => handleDeletePhase(phase.id)}
-                              >
-                                <Trash2 size={18} /> Delete
-                              </button>
+                          <div>
+                            <label className="block text-xs font-medium mb-1" style={{ color: palette.TEXT_GRAY }}>
+                              Phase Name
+                            </label>
+                            <div className="px-3 py-2 rounded text-base capitalize" style={{ background: palette.ORANGE_LIGHT, color: palette.TEXT_GRAY }}>
+                              {phase.phase}
                             </div>
                           </div>
-                        )}
-                      </div>
-                    ))}
+                          <div className="flex gap-2 pt-2">
+                            <button
+                              className="flex-1 rounded-lg font-medium"
+                              style={{ background: palette.ORANGE, color: "#fff" }}
+                              onClick={() => handleEditPhase(phase)}
+                            >
+                              <Edit3 size={18} /> Edit
+                            </button>
+                            <button
+                              className="rounded-lg font-medium"
+                              style={{ background: "#fae7e3", color: palette.ORANGE_DARK }}
+                              onClick={() => handleDeletePhase(phase.id)}
+                            >
+                              <Trash2 size={18} /> Delete
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               ) : (
-                <p className="text-gray-400 text-center py-10">
-                  No phases created yet
-                </p>
+                <p className="text-gray-400 text-center py-10">No phases created yet</p>
               )}
             </div>
           </div>
@@ -836,14 +687,7 @@ const getStages = async (phasesDataParam = null, purposesDataParam = null) => {
 
       {/* STAGES */}
       {activeSection === "Stages" && (
-        <div
-          className="p-8 rounded-2xl mb-6 shadow"
-          style={{
-            background: palette.BG_WHITE,
-            border: `1px solid ${palette.BORDER_GRAY}`,
-            color: palette.TEXT_GRAY,
-          }}
-        >
+        <div className="p-8 rounded-2xl mb-6 shadow" style={{ background: palette.BG_WHITE, border: `1px solid ${palette.BORDER_GRAY}`, color: palette.TEXT_GRAY }}>
           <div className="flex items-center gap-4 mb-6">
             <button
               className="px-5 py-3 rounded-xl font-semibold flex items-center gap-2 shadow"
@@ -860,53 +704,31 @@ const getStages = async (phasesDataParam = null, purposesDataParam = null) => {
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {/* Create Stage Card */}
             {isCreateStage && (
-              <div
-                className="border-2 rounded-2xl p-6 shadow-xl flex flex-col gap-5 min-w-[320px]"
-                style={{
-                  background: palette.BG_WHITE,
-                  borderColor: palette.ORANGE,
-                  color: palette.TEXT_GRAY,
-                }}
-              >
-                <h4
-                  className="font-bold text-lg mb-2"
-                  style={{ color: palette.ORANGE_DARK }}
-                >
+              <div className="border-2 rounded-2xl p-6 shadow-xl flex flex-col gap-5 min-w-[320px]"
+                style={{ background: palette.BG_WHITE, borderColor: palette.ORANGE, color: palette.TEXT_GRAY }}>
+                <h4 className="font-bold text-lg mb-2" style={{ color: palette.ORANGE_DARK }}>
                   New Stage
                 </h4>
                 <div>
-                  <label
-                    className="block font-medium mb-1"
-                    style={{ color: palette.TEXT_GRAY }}
-                  >
+                  <label className="block font-medium mb-1" style={{ color: palette.TEXT_GRAY }}>
                     Phase
                   </label>
                   <select
                     value={selectedPhase}
                     onChange={(e) => setSelectedPhase(e.target.value)}
                     className="w-full px-3 py-2 border rounded-lg focus:outline-none text-base"
-                    style={{
-                      borderColor: palette.ORANGE,
-                      color: palette.TEXT_GRAY,
-                      background: palette.ORANGE_LIGHT,
-                    }}
+                    style={{ borderColor: palette.ORANGE, color: palette.TEXT_GRAY, background: palette.ORANGE_LIGHT }}
                   >
                     <option value="">Select Phase</option>
                     {phasesData.map((phase) => (
-                      <option
-                        key={phase.id}
-                        value={`${phase.purpose}:${phase.phase}`}
-                      >
+                      <option key={phase.id} value={`${phase.purpose}:${phase.phase}`}>
                         {phase.purpose} - {phase.phase}
                       </option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label
-                    className="block font-medium mb-1"
-                    style={{ color: palette.TEXT_GRAY }}
-                  >
+                  <label className="block font-medium mb-1" style={{ color: palette.TEXT_GRAY }}>
                     Stage Name
                   </label>
                   <input
@@ -914,11 +736,7 @@ const getStages = async (phasesDataParam = null, purposesDataParam = null) => {
                     onChange={(e) => setStageName(e.target.value)}
                     type="text"
                     className="w-full px-3 py-2 border rounded-lg focus:outline-none text-base"
-                    style={{
-                      borderColor: palette.ORANGE,
-                      color: palette.TEXT_GRAY,
-                      background: palette.ORANGE_LIGHT,
-                    }}
+                    style={{ borderColor: palette.ORANGE, color: palette.TEXT_GRAY, background: palette.ORANGE_LIGHT }}
                     placeholder="Enter stage name"
                   />
                 </div>
@@ -937,11 +755,7 @@ const getStages = async (phasesDataParam = null, purposesDataParam = null) => {
                       setStageName("");
                     }}
                     className="px-4 py-2 border rounded-lg font-medium"
-                    style={{
-                      borderColor: palette.ORANGE,
-                      color: palette.ORANGE,
-                      background: "#f4f4f4",
-                    }}
+                    style={{ borderColor: palette.ORANGE, color: palette.ORANGE, background: "#f4f4f4" }}
                   >
                     Cancel
                   </button>
@@ -950,174 +764,105 @@ const getStages = async (phasesDataParam = null, purposesDataParam = null) => {
             )}
 
             {/* Existing Stages */}
-            {Array.isArray(stagesData) &&
-              stagesData.map((stage, index) => (
-                <div
-                  key={stage.id}
-                  className="border rounded-2xl p-5 shadow-xl group flex flex-col gap-2"
-                  style={{
-                    background: palette.BG_WHITE,
-                    borderColor: palette.ORANGE,
-                    color: palette.TEXT_GRAY,
-                  }}
-                >
-                  <div>
-                    <label
-                      className="block text-xs font-medium mb-1"
-                      style={{ color: palette.TEXT_GRAY }}
-                    >
-                      Purpose
-                    </label>
-                    <div
-                      className="px-3 py-2 rounded text-base capitalize"
-                      style={{
-                        background: palette.ORANGE_LIGHT,
-                        color: palette.TEXT_GRAY,
-                      }}
-                    >
-                      {stage.purpose}
-                    </div>
-                  </div>
-                  <div>
-                    <label
-                      className="block text-xs font-medium mb-1"
-                      style={{ color: palette.TEXT_GRAY }}
-                    >
-                      Phase
-                    </label>
-                    <div
-                      className="px-3 py-2 rounded text-base capitalize"
-                      style={{
-                        background: palette.ORANGE_LIGHT,
-                        color: palette.TEXT_GRAY,
-                      }}
-                    >
-                      {stage.phase}
-                    </div>
-                  </div>
-                  <div>
-                    <label
-                      className="block text-xs font-medium mb-1"
-                      style={{ color: palette.TEXT_GRAY }}
-                    >
-                      Stage Name
-                    </label>
-                    {editIndex === index ? (
-                      <input
-                        type="text"
-                        value={editedStageName}
-                        onChange={(e) => setEditedStageName(e.target.value)}
-                        className="w-full px-3 py-2 border rounded-lg focus:outline-none text-base"
-                        style={{
-                          borderColor: palette.ORANGE,
-                          color: palette.TEXT_GRAY,
-                          background: palette.ORANGE_LIGHT,
-                        }}
-                      />
-                    ) : (
-                      <div
-                        className="px-3 py-2 rounded text-base capitalize"
-                        style={{
-                          background: palette.ORANGE_LIGHT,
-                          color: palette.TEXT_GRAY,
-                        }}
-                      >
-                        {stage.stage}
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <label
-                      className="block text-xs font-medium mb-1"
-                      style={{ color: palette.TEXT_GRAY }}
-                    >
-                      Sequence
-                    </label>
-                    {editIndex === index ? (
-                      <input
-                        type="number"
-                        min={1}
-                        value={editedSequence}
-                        onChange={(e) =>
-                          setEditedSequence(Number(e.target.value))
-                        }
-                        className="w-full px-3 py-2 border rounded-lg focus:outline-none text-base"
-                        style={{
-                          borderColor: palette.ORANGE,
-                          color: palette.TEXT_GRAY,
-                          background: palette.ORANGE_LIGHT,
-                        }}
-                      />
-                    ) : (
-                      <div
-                        className="px-3 py-2 rounded text-base text-center"
-                        style={{
-                          background: palette.ORANGE_LIGHT,
-                          color: palette.TEXT_GRAY,
-                        }}
-                      >
-                        {stage.sequence}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex gap-2 pt-2">
-                    {editIndex === index ? (
-                      <>
-                        <button
-                          onClick={handleSaveClick}
-                          disabled={isSaving}
-                          className="flex-1 rounded-lg font-medium"
-                          style={{ background: palette.ORANGE, color: "#fff" }}
-                        >
-                          {isSaving ? (
-                            "Saving..."
-                          ) : (
-                            <>
-                              <Check size={18} /> Save
-                            </>
-                          )}
-                        </button>
-                        <button
-                          onClick={() => setEditIndex(null)}
-                          className="flex-1 border px-3 py-2 rounded-lg font-medium"
-                          style={{
-                            borderColor: palette.ORANGE,
-                            color: palette.ORANGE,
-                            background: "#f4f4f4",
-                          }}
-                        >
-                          <X size={18} /> Cancel
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => handleEditClick(index)}
-                          className="flex-1 rounded-lg font-medium"
-                          style={{ background: palette.ORANGE, color: "#fff" }}
-                        >
-                          <Edit3 size={18} /> Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteStage(stage.id)}
-                          className="rounded-lg font-medium"
-                          style={{
-                            background: "#fae7e3",
-                            color: palette.ORANGE_DARK,
-                          }}
-                        >
-                          <Trash2 size={18} /> Delete
-                        </button>
-                      </>
-                    )}
+            {stagesData?.map((stage, index) => (
+              <div key={stage.id} className="border rounded-2xl p-5 shadow-xl group flex flex-col gap-2"
+                style={{ background: palette.BG_WHITE, borderColor: palette.ORANGE, color: palette.TEXT_GRAY }}>
+                <div>
+                  <label className="block text-xs font-medium mb-1" style={{ color: palette.TEXT_GRAY }}>
+                    Purpose
+                  </label>
+                  <div className="px-3 py-2 rounded text-base capitalize" style={{ background: palette.ORANGE_LIGHT, color: palette.TEXT_GRAY }}>
+                    {stage.purpose}
                   </div>
                 </div>
-              ))}
+                <div>
+                  <label className="block text-xs font-medium mb-1" style={{ color: palette.TEXT_GRAY }}>
+                    Phase
+                  </label>
+                  <div className="px-3 py-2 rounded text-base capitalize" style={{ background: palette.ORANGE_LIGHT, color: palette.TEXT_GRAY }}>
+                    {stage.phase}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1" style={{ color: palette.TEXT_GRAY }}>
+                    Stage Name
+                  </label>
+                  {editIndex === index ? (
+                    <input
+                      type="text"
+                      value={editedStageName}
+                      onChange={(e) => setEditedStageName(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg focus:outline-none text-base"
+                      style={{ borderColor: palette.ORANGE, color: palette.TEXT_GRAY, background: palette.ORANGE_LIGHT }}
+                    />
+                  ) : (
+                    <div className="px-3 py-2 rounded text-base capitalize" style={{ background: palette.ORANGE_LIGHT, color: palette.TEXT_GRAY }}>
+                      {stage.stage}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1" style={{ color: palette.TEXT_GRAY }}>
+                    Sequence
+                  </label>
+                  {editIndex === index ? (
+                    <input
+                      type="number"
+                      min={1}
+                      value={editedSequence}
+                      onChange={(e) => setEditedSequence(Number(e.target.value))}
+                      className="w-full px-3 py-2 border rounded-lg focus:outline-none text-base"
+                      style={{ borderColor: palette.ORANGE, color: palette.TEXT_GRAY, background: palette.ORANGE_LIGHT }}
+                    />
+                  ) : (
+                    <div className="px-3 py-2 rounded text-base text-center" style={{ background: palette.ORANGE_LIGHT, color: palette.TEXT_GRAY }}>
+                      {stage.sequence}
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2 pt-2">
+                  {editIndex === index ? (
+                    <>
+                      <button
+                        onClick={handleSaveClick}
+                        disabled={isSaving}
+                        className="flex-1 rounded-lg font-medium"
+                        style={{ background: palette.ORANGE, color: "#fff" }}
+                      >
+                        {isSaving ? "Saving..." : <><Check size={18} /> Save</>}
+                      </button>
+                      <button
+                        onClick={() => setEditIndex(null)}
+                        className="flex-1 border px-3 py-2 rounded-lg font-medium"
+                        style={{ borderColor: palette.ORANGE, color: palette.ORANGE, background: "#f4f4f4" }}
+                      >
+                        <X size={18} /> Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => handleEditClick(index)}
+                        className="flex-1 rounded-lg font-medium"
+                        style={{ background: palette.ORANGE, color: "#fff" }}
+                      >
+                        <Edit3 size={18} /> Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteStage(stage.id)}
+                        className="rounded-lg font-medium"
+                        style={{ background: "#fae7e3", color: palette.ORANGE_DARK }}
+                      >
+                        <Trash2 size={18} /> Delete
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
           {stagesData.length === 0 && !isCreateStage && (
-            <p className="text-gray-400 text-center py-8">
-              No stages created yet
-            </p>
+            <p className="text-gray-400 text-center py-8">No stages created yet</p>
           )}
         </div>
       )}

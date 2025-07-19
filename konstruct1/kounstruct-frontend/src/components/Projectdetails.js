@@ -4,6 +4,7 @@ import projectImage from "../Images/Project.png";
 import { getProjectLevelDetails } from "../api";
 import toast from "react-hot-toast";
 import SiteBarHome from "./SiteBarHome";
+import axios from "axios";
 
 const ProjectDetailsPage = () => {
   const { id: projectIdFromUrl } = useParams();
@@ -24,15 +25,36 @@ const ProjectDetailsPage = () => {
       return;
     }
     const fetchProjectTower = async () => {
-      const response = await getProjectLevelDetails(projectId);
-      if (response.status === 200) {
-        setProjectLevelData(response.data);
-      } else {
-        toast.error(response.data.message);
+  try {
+    const token = localStorage.getItem("ACCESS_TOKEN");
+    console.log("📦 Project ID:", projectId);
+    console.log("🔐 ACCESS_TOKEN:", token);
+
+    const response = await axios.get(
+      `https://konstruct.world/projects/buildings/by_project/${projectId}/`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       }
-    };
-    fetchProjectTower();
-  }, [projectId, navigate]);
+    );
+
+    if (response.status === 200 && Array.isArray(response.data)) {
+  setProjectLevelData(response.data);
+} else {
+  setProjectLevelData([]); // fallback to empty list
+  toast.error("Invalid or empty response from server.");
+}
+
+  } catch (error) {
+    console.error("❌ API fetch failed:", error);
+    toast.error("Something went wrong while fetching project levels.");
+  }
+};
+
+fetchProjectTower();
+}, [projectId, navigate]);
 
   const handleImageClick = (proj) => {
     navigate(`/Level/${proj}`, {

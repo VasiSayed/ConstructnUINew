@@ -20,6 +20,7 @@ import {
   createEntity,
   allorgantioninfototalbyUser_id,
 } from "../../api";
+import axios from "axios";
 import { toast } from "react-hot-toast";
 import { useSelector, useDispatch } from "react-redux";
 import { setOrganization as setOrganizationAction } from "../../store/userSlice";
@@ -96,7 +97,15 @@ const UserSetup = () => {
   };
   const fetchEntityStepInfo = async () => {
     try {
-      const response = await allorgantioninfototalbyUser_id(userId);
+    const response = await axios.get(
+      `https://konstruct.world/organizations/user-orgnizationn-info/${userId}/`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("ACCESS_TOKEN")}`,
+        },
+      }
+    );
+//     const response = await allorgantioninfototalbyUser_id(userId);
       setEntityStepOrgs(Array.isArray(response.data.organizations) ? response.data.organizations : []);
       setEntityStepCompanies(Array.isArray(response.data.companies) ? response.data.companies : []);
     } catch {

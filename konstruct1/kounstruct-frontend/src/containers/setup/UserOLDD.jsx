@@ -10,7 +10,6 @@ import { MdOutlineCancel } from "react-icons/md";
 import SideBarSetup from "../../components/SideBarSetup";
 import { showToast } from "../../utils/toast";
 import { useTheme } from "../../ThemeContext";
-import axios from "axios";
 import {
   createUserDetails,
   allorgantioninfototalbyUser_id,
@@ -274,14 +273,7 @@ function User() {
     }
     setOrgInfoLoading(true);
     try {
-       const response = await axios.get(
-      `https://konstruct.world/organizations/user-orgnizationn-info/${userId}/`,
-      {
-        headers: {
-          Authorization:` Bearer ${localStorage.getItem("ACCESS_TOKEN")}`,
-        },
-      }
-    );
+      const response = await allorgantioninfototalbyUser_id(userId);
       setOrgInfo(response.data);
     } catch (error) {
       showToast("Failed to fetch organization info", "error");

@@ -4,6 +4,7 @@ import { createProject, allorgantioninfototalbyUser_id } from "../../api";
 import { showToast } from "../../utils/toast";
 import { useSelector } from "react-redux";
 import { useTheme } from "../../ThemeContext";// THEME!
+import axios from 'axios';
 
 function AddProjectModal({ onClose, onSave }) {
   const { theme } = useTheme();
@@ -35,7 +36,14 @@ function AddProjectModal({ onClose, onSave }) {
     const fetchUserOrgs = async () => {
       try {
         if (userId) {
-          const resp = await allorgantioninfototalbyUser_id(userId);
+          const resp =  await axios.get(
+      `https://konstruct.world/organizations/user-orgnizationn-info/${userId}/`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("ACCESS_TOKEN")}`,
+        },
+      }
+);
           setOrgOptions(resp.data.organizations || []);
           setCompanyOptions(resp.data.companies || []);
           setEntityOptions(resp.data.entities || []);
